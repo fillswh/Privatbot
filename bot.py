@@ -22,10 +22,21 @@ class BookingStates(StatesGroup):
     route = State()        # Маршрут
     contacts = State()     # Контакти
 
+start_kb = types.ReplyKeyboardMarkup(
+    keyboard=[
+        [types.KeyboardButton(text="/start")]
+    ],
+    resize_keyboard=True,
+    one_time_keyboard=True,
+)
+
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     await state.clear()
-    await message.answer("Привіт! Виберіть ?\n1. Шукаю перевізника\n2. Пропоную послугу\n\nНапишіть 1 або 2.")
+    await message.answer(
+        "Привіт! Виберіть ?\n1. Шукаю перевізника\n2. Пропоную послугу\n\nНапишіть 1 або 2.",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
     await state.set_state(BookingStates.action)
 
 @dp.message(BookingStates.action)
@@ -68,13 +79,16 @@ async def process_contacts(message: types.Message, state: FSMContext):
         f"🚍 {action}\n"
         f"📅 Дата: {date}\n"
         f"📍 Маршрут: {route}\n"
-        f"📞 Контакты: {contacts}\n"
-        f"👤 От @{message.from_user.username or message.from_user.full_name} (ID: {message.from_user.id})"
+        f"📞 Контакти: {contacts}\n"
+        f"👤 Від @{message.from_user.username or message.from_user.full_name} (ID: {message.from_user.id})"
     )
 
     try:
         await bot.send_message(CHANNEL_ID, text_to_channel)
-        await message.answer("✅ Ваше повідомлення надіслано в канал. Дякуємо!")
+        await message.answer(
+            "✅ Ваше повідомлення надіслано в канал. Дякуємо!",
+            reply_markup=start_kb
+        )
     except Exception as e:
         await message.answer(f"❌ Помилка при надсиланні повідомлення в канал: {e}")
 
