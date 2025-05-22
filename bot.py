@@ -2,7 +2,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 import asyncio
 import os
-
+load_dotenv()
 API_TOKEN = os.getenv("7984024778:AAGUXeHYYu5c_dVmYX5tdJ3vbt-6YLfoYEc")
 CHANNEL_ID = os.getenv("1975222163")
 
