@@ -4,11 +4,11 @@ import asyncio
 import os
 from dotenv import load_dotenv
 
-# Загружаем переменные из .env или Railway Variables
+# Загружаем переменные из .env или Railway
 load_dotenv()
 
-API_TOKEN = os.getenv("7984024778:AAGUXeHYYu5c_dVmYX5tdJ3vbt-6YLfoYEc")
-CHANNEL_ID = os.getenv("-1975222163")
+API_TOKEN = os.getenv("BOT_TOKEN")
+CHANNEL_ID = os.getenv("CHANNEL_ID")
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
@@ -33,7 +33,5 @@ async def forward_to_channel(message: types.Message):
 async def main():
     await dp.start_polling(bot)
 
-if __name__ == "__main__":
-    asyncio.run(main())
 if __name__ == "__main__":
     asyncio.run(main())
