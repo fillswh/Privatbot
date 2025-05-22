@@ -2,6 +2,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
 import asyncio
 import os
 from dotenv import load_dotenv
@@ -12,70 +13,74 @@ API_TOKEN = os.getenv("BOT_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
 bot = Bot(token=API_TOKEN)
-dp = Dispatcher()
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 
-# Определяем шаги диалога
-class Form(StatesGroup):
-    role = State()
-    date = State()
-    route = State()
-    contact = State()
+class BookingStates(StatesGroup):
+    action = State()       # Ищу перевозчика или предлагаю услугу
+    date = State()         # Дата поездки
+    route = State()        # Маршрут
+    contacts = State()     # Контакты
 
 @dp.message(Command("start"))
-async def start(message: types.Message, state: FSMContext):
-    await message.answer("Привет! Выберите одну из опций:\n1. Ищу перевозчика\n2. Предлагаю услугу перевозки")
-    await state.set_state(Form.role)
+async def cmd_start(message: types.Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Привет! Что вы хотите?\n1. Ищу перевозчика\n2. Предлагаю услугу\n\nНапишите 1 или 2.")
+    await state.set_state(BookingStates.action)
 
-@dp.message(Form.role)
-async def process_role(message: types.Message, state: FSMContext):
-    role_text = message.text.strip().lower()
-    if "ищу" in role_text:
-        await state.update_data(role="Ищу перевозчика")
-    elif "предлагаю" in role_text or "услуга" in role_text:
-        await state.update_data(role="Предлагаю услугу перевозки")
+@dp.message(BookingStates.action)
+async def process_action(message: types.Message, state: FSMContext):
+    text = message.text.strip()
+    if text == "1":
+        await state.update_data(action="Ищу перевозчика")
+    elif text == "2":
+        await state.update_data(action="Предлагаю услугу")
     else:
-        await message.answer("Пожалуйста, выберите 'Ищу перевозчика' или 'Предлагаю услугу перевозки'.")
+        await message.answer("Пожалуйста, введите 1 или 2.")
         return
-    await message.answer("Укажите дату поездки (например, 25.05.2025):")
-    await state.set_state(Form.date)
+    await message.answer("Введите дату поездки (например, 2025-06-01):")
+    await state.set_state(BookingStates.date)
 
-@dp.message(Form.date)
+@dp.message(BookingStates.date)
 async def process_date(message: types.Message, state: FSMContext):
-    await state.update_data(date=message.text.strip())
-    await message.answer("Укажите маршрут (например, Киев — Львов):")
-    await state.set_state(Form.route)
+    date = message.text.strip()
+    # Тут можно добавить валидацию даты при желании
+    await state.update_data(date=date)
+    await message.answer("Введите маршрут поездки:")
+    await state.set_state(BookingStates.route)
 
-@dp.message(Form.route)
+@dp.message(BookingStates.route)
 async def process_route(message: types.Message, state: FSMContext):
-    await state.update_data(route=message.text.strip())
-    await message.answer("Оставьте контактную информацию (телефон, Telegram и т.д.):")
-    await state.set_state(Form.contact)
+    route = message.text.strip()
+    await state.update_data(route=route)
+    await message.answer("Введите ваши контакты для связи:")
+    await state.set_state(BookingStates.contacts)
 
-@dp.message(Form.contact)
-async def process_contact(message: types.Message, state: FSMContext):
-    await state.update_data(contact=message.text.strip())
+@dp.message(BookingStates.contacts)
+async def process_contacts(message: types.Message, state: FSMContext):
+    contacts = message.text.strip()
     data = await state.get_data()
-    
-    text = (
-        f"📝 Новое объявление:\n"
-        f"Тип: {data['role']}\n"
-        f"Дата: {data['date']}\n"
-        f"Маршрут: {data['route']}\n"
-        f"Контакты: {data['contact']}\n"
-        f"От: @{message.from_user.username or message.from_user.full_name} (ID: {message.from_user.id})"
+    action = data.get("action")
+    date = data.get("date")
+    route = data.get("route")
+
+    text_to_channel = (
+        f"🚍 {action}\n"
+        f"📅 Дата: {date}\n"
+        f"📍 Маршрут: {route}\n"
+        f"📞 Контакты: {contacts}\n"
+        f"👤 От @{message.from_user.username or message.from_user.full_name} (ID: {message.from_user.id})"
     )
 
     try:
-        await bot.send_message(CHANNEL_ID, text)
-        await message.answer("✅ Объявление отправлено в канал.")
+        await bot.send_message(CHANNEL_ID, text_to_channel)
+        await message.answer("✅ Ваше сообщение отправлено в канал. Спасибо!")
     except Exception as e:
-        await message.answer(f"❌ Ошибка при отправке: {e}")
+        await message.answer(f"❌ Ошибка при отправке сообщения в канал: {e}")
 
     await state.clear()
 
 async def main():
-    from aiogram.fsm.storage.memory import MemoryStorage
-    dp.storage = MemoryStorage()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
