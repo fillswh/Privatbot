@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 import asyncio
