@@ -5,7 +5,7 @@ import asyncio
 import os
 load_dotenv()
 API_TOKEN = os.getenv("7984024778:AAGUXeHYYu5c_dVmYX5tdJ3vbt-6YLfoYEc")
-CHANNEL_ID = os.getenv("1975222163")
+CHANNEL_ID = os.getenv("@htokudy")
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
