@@ -33,10 +33,11 @@ back_kb = types.ReplyKeyboardMarkup(
     resize_keyboard=True,
 )
 
-# Кнопка для отправки контакта (номер телефона)
 contact_kb = types.ReplyKeyboardMarkup(
-    keyboard=[[types.KeyboardButton(text="Поділитися контактом", request_contact=True)],
-              [types.KeyboardButton(text="🔙 Назад")]],
+    keyboard=[
+        [types.KeyboardButton(text="Поділитися контактом", request_contact=True)],
+        [types.KeyboardButton(text="🔙 Назад")]
+    ],
     resize_keyboard=True,
 )
 
@@ -76,37 +77,35 @@ async def process_date(message: types.Message, state: FSMContext):
 @dp.message(BookingStates.route)
 async def process_route(message: types.Message, state: FSMContext):
     if message.text == "🔙 Назад":
-        await message.answer("Вкажіть дату поїздки (наприклад, 2025-06-01):", reply_markup=back_kb)
+        await message.answer(
+            "Вкажіть дату поїздки (наприклад, 06-01-2025):", reply_markup=back_kb
+        )
         await state.set_state(BookingStates.date)
         return
     await state.update_data(route=message.text.strip())
     await message.answer(
-        "Вкажіть ваші контакти для зв'язку або поділіться контактом через кнопку нижче:",
+        "Будь ласка, поділіться вашим контактом або напишіть його вручну:",
         reply_markup=contact_kb,
     )
     await state.set_state(BookingStates.contacts)
 
-@dp.message(BookingStates.contacts, F.content_type == "text")
-async def process_contacts_text(message: types.Message, state: FSMContext):
+@dp.message(BookingStates.contacts)
+async def process_contacts(message: types.Message, state: FSMContext):
     if message.text == "🔙 Назад":
         await message.answer("Напишіть маршрут поїздки:", reply_markup=back_kb)
         await state.set_state(BookingStates.route)
         return
-    # Просто текстовый ввод контактов (если не поделились контактом через кнопку)
-    await state.update_data(contacts=message.text.strip())
-    await send_summary_and_finish(message, state)
 
-@dp.message(BookingStates.contacts, F.content_type == "contact")
-async def process_contacts_contact(message: types.Message, state: FSMContext):
-    contact = message.contact
-    # Берём номер телефона из контакта
-    phone_number = contact.phone_number
-    # Можно дополнительно получить имя контакта из message.contact.first_name и last_name
-    contact_info = f"{phone_number} (ім'я: {contact.first_name or 'Н/Д'})"
-    await state.update_data(contacts=contact_info)
-    await send_summary_and_finish(message, state)
+    # Если пользователь отправил контакт через кнопку
+    if message.contact:
+        contact_info = f"{message.contact.first_name or ''} {message.contact.last_name or ''}".strip()
+        contact_phone = message.contact.phone_number
+        contact = f"{contact_info} Телефон: {contact_phone}"
+    else:
+        # Если пользователь просто ввел текст с контактами
+        contact = message.text.strip()
 
-async def send_summary_and_finish(message: types.Message, state: FSMContext):
+    await state.update_data(contacts=contact)
     data = await state.get_data()
 
     text_to_channel = (
@@ -114,14 +113,15 @@ async def send_summary_and_finish(message: types.Message, state: FSMContext):
         f"📅 Дата: {data.get('date')}\n"
         f"📍 Маршрут: {data.get('route')}\n"
         f"📞 Контакти: {data.get('contacts')}\n"
-        f"👤 Від @{message.from_user.username or message.from_user.full_name} (ID: {message.from_user.id})"
     )
 
     try:
         await bot.send_message(CHANNEL_ID, text_to_channel)
         await message.answer("✅ Ваше повідомлення надіслано в канал. Дякуємо!", reply_markup=start_kb)
     except Exception as e:
-        await message.answer(f"❌ Помилка при надсиланні повідомлення в канал: {e}", reply_markup=start_kb)
+        await message.answer(
+            f"❌ Помилка при надсиланні повідомлення в канал: {e}", reply_markup=start_kb
+        )
 
     await state.clear()
 
